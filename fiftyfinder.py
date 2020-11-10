@@ -10,6 +10,29 @@ def isNumber(input):
 	except ValueError:
 		return False
 
+def cleanAndSplitEndSearchString(s):
+	s = s.strip()
+	s = ''.join([j if ord(j) < 128 else '' for j in s])
+	splitString = s.split(" ")
+	splitString = [x for x in splitString if x != "" and x != "Edited"]
+
+	return splitString
+
+def getSplitChar(lastElement):
+	splitChar = None
+
+	if ("w" in lastElement):
+		splitChar = "w"
+	elif ("d" in lastElement):
+		splitChar = "d"
+	elif ("h" in lastElement):
+		splitChar = "h"
+	elif ("m" in lastElement):
+		splitChar = "m"
+	elif ("s" in lastElement):
+		splitChar = "s"
+
+	return splitChar
 
 if len(sys.argv) != 2:
 	print "missing filename!"
@@ -32,29 +55,16 @@ while i+1 < len(content):
 	if firstEntry == "" or firstEntry == "\n":
 		continue
 
-	lookingForDate = True
-	while lookingForDate:
-		nextStr = content[i].strip();
+	while True:
+		searchList = cleanAndSplitEndSearchString(content[i])
 		i+=1
 
-		stripped = nextStr.split(" ")
-		if len(stripped) == 0:
+		if len(searchList) == 0:
 			continue
 
-		lastElement = stripped[-1]
-
-		splitChar = None
-		if ("w" in lastElement):
-			splitChar = "w"
-		elif ("d" in lastElement):
-			splitChar = "d"
-		elif ("h" in lastElement):
-			splitChar = "h"
-		elif ("m" in lastElement):
-			splitChar = "m"
-		elif ("s" in lastElement):
-			splitChar = "s"
-		else:
+		lastElement = searchList[-1]
+		splitChar = getSplitChar(lastElement)
+		if (splitChar == None):
 			continue
 
 		potentialNumber = lastElement.split(splitChar)
@@ -66,7 +76,7 @@ while i+1 < len(content):
 		if (isNumber(potentialNumber)):
 			if (firstEntry not in users):
 				users.append(firstEntry)
-			lookingForDate = False
+			break
 
 with open(filename.split(".")[0] + '.csv', 'wb') as outfile:
 	wr = csv.writer(outfile, quoting=csv.QUOTE_ALL)
