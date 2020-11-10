@@ -10,93 +10,122 @@ def isNumber(input):
 	except ValueError:
 		return False
 
-def cleanAndSplitEndSearchString(s):
-	s = s.strip()
-	s = ''.join([j if ord(j) < 128 else '' for j in s])
-	splitString = s.split(" ")
+# takes a string as input
+# removes non ascii characters, needless spaces and undesired tokens
+def rowToCleanArray(row):
+	row = row.strip()
+	row = ''.join([j if ord(j) < 128 else '' for j in row])
+	splitString = row.split(" ")
 	splitString = [x for x in splitString if x != "" and x != "Edited"]
 
 	return splitString
 
-def getSplitChar(lastElement):
-	splitChar = None
+# returns true if timestamp character is in string
+# w = week, d = day, h = hour, etc.
+def getTimestampCharacter(s):
+	if "w" in s:
+		return "w"
+	if "d" in s:
+		return "d"
+	if "h" in s:
+		return "h"
+	if "m" in s:
+		return "m"
+	if "s" in s:
+		return "s"
 
-	if ("w" in lastElement):
-		splitChar = "w"
-	elif ("d" in lastElement):
-		splitChar = "d"
-	elif ("h" in lastElement):
-		splitChar = "h"
-	elif ("m" in lastElement):
-		splitChar = "m"
-	elif ("s" in lastElement):
-		splitChar = "s"
+	return None
 
-	return splitChar
+# accepts a row split into a list from the file
+# returns true if the row represents a row that is followed by a user's name
+# 
+# we look for a comment with a time associated, for example " Reply 1d"
+# this function looks to see if the final token is a time stamp (in this example, 1d)
+def isRowBeforeUsersName(searchList):
+	if len(searchList) == 0:
+		return False
 
-if len(sys.argv) != 2:
-	print "missing filename!"
-	print "example: 'python fiftyfinder.py bait23.txt'"
-	exit(1)
+	lastElement = searchList[-1]
 
-start = time.time()
-filename = sys.argv[1]
+	timestampChar = getTimestampCharacter(lastElement)
+	if (timestampChar == None):
+		return False
 
-with open(filename) as f:
-	content = f.readlines()
+	potentialNumber = lastElement.split(timestampChar)
+	if len(potentialNumber) == 0:
+		return False
 
-users = []
+	potentialNumber = potentialNumber[0]
 
-i = 0
-while i+1 < len(content):
-	firstEntry = content[i].strip()
-	i+=1
+	if not isNumber(potentialNumber):
+		return False
 
-	if firstEntry == "" or firstEntry == "\n":
-		continue
+	return True
 
-	while True:
-		searchList = cleanAndSplitEndSearchString(content[i])
+def getUsersFromFile(filePath):
+	users = set()
+
+	with open(filePath) as f:
+		rows = f.readlines()
+
+	i = 0
+	while i+1 < len(rows):
+		usersName = rows[i].strip()
 		i+=1
 
-		if len(searchList) == 0:
+		if usersName == "" or usersName == "\n":
 			continue
 
-		lastElement = searchList[-1]
-		splitChar = getSplitChar(lastElement)
-		if (splitChar == None):
-			continue
+		searchingForNextUser = True
+		while searchingForNextUser:
+			currentRow = rows[i]
+			searchList = rowToCleanArray(currentRow)
+			i+=1
 
-		potentialNumber = lastElement.split(splitChar)
-		if len(potentialNumber) == 0:
-			continue
+			if isRowBeforeUsersName(searchList):
+				users.add(usersName)
+				searchingForNextUser = False
 
-		potentialNumber = potentialNumber[0]
+	return users
 
-		if (isNumber(potentialNumber)):
-			if (firstEntry not in users):
-				users.append(firstEntry)
-			break
+def writeUsersToFile(users, filePath):
+	with open(filePath, 'wb') as outfile:
+		wr = csv.writer(outfile, quoting=csv.QUOTE_ALL)
+		for user in users:
+			wr.writerow([user])
 
-with open(filename.split(".")[0] + '.csv', 'wb') as outfile:
-	wr = csv.writer(outfile, quoting=csv.QUOTE_ALL)
-	for user in users:
-		wr.writerow([user])
+def logResults(users, outputFile, runtime):
+	print ""
+	print ""
+	print "fifty finder winner finder results:"
+	print "total users:\t" + str(len(users))
+	print "bakers guess:\t" + random.choice(tuple(users))
+	print "execution time:\t" + str(runtime)[0:8]
+	print "file saved:\t" + outputFile
+	print ""
+	print ""
+	print "           _   _            _           _             "
+	print "          | | | |          | |         | |            "
+	print "  ______  | |_| |__   ___  | |__   __ _| | _____ _ __ "
+	print " |______| | __| '_ \\ / _ \\ | '_ \\ / _` | |/ / _ \\ '__|"
+	print "          | |_| | | |  __/ | |_) | (_| |   <  __/ |   "
+	print "           \\__|_| |_|\\___| |_.__/ \\__,_|_|\\_\\___|_|"
 
-end = time.time()
+def main():
+	if len(sys.argv) != 2:
+		print "missing filename!"
+		print "example: 'python fiftyfinder.py bait23.txt'"
+		exit(1)
 
-print ""
-print ""
-print "fifty finder winner finder results:"
-print "total users:\t" + str(len(users))
-print "bakers guess:\t" + users[random.randint(0,len(users)-1)]
-print "execution time:\t" + str(end - start)[0:8]
-print "file saved:\t" + str(filename.split(".")[0] + '.csv')
-print ""
-print ""
-print "           _   _            _           _             "
-print "          | | | |          | |         | |            "
-print "  ______  | |_| |__   ___  | |__   __ _| | _____ _ __ "
-print " |______| | __| '_ \\ / _ \\ | '_ \\ / _` | |/ / _ \\ '__|"
-print "          | |_| | | |  __/ | |_) | (_| |   <  __/ |   "
-print "           \\__|_| |_|\\___| |_.__/ \\__,_|_|\\_\\___|_|"
+	inputFile = sys.argv[1]
+	outputFile = inputFile.split(".")[0] + '.csv'
+
+	start = time.time()
+	users = getUsersFromFile(inputFile)
+	writeUsersToFile(users, outputFile)
+	end = time.time()
+
+	logResults(users, outputFile, end - start)
+
+if __name__ == "__main__":
+    main()
