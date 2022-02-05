@@ -55,7 +55,7 @@ def isRowBeforeUsersName(searchList):
 	if len(potentialNumber) == 0:
 		return False
 
-	potentialNumber = potentialNumber[0]
+	potentialNumber = potentialNumber[0].replace("Reply", "")
 
 	if not isNumber(potentialNumber):
 		return False
